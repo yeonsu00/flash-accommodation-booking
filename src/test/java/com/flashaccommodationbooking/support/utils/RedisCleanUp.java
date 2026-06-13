@@ -17,6 +17,8 @@ public class RedisCleanUp {
     public void truncateAll() {
         deleteByPattern("queue:waiting:*");
         deleteByPattern("queue:token:*");
+        deleteByPattern("queue:admitted:*");
+        deleteByPattern("open:*");
     }
 
     private void deleteByPattern(String pattern) {

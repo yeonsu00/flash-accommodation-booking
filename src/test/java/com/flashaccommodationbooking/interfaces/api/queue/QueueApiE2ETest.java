@@ -2,8 +2,10 @@ package com.flashaccommodationbooking.interfaces.api.queue;
 
 import com.flashaccommodationbooking.domain.queue.QueueStatus;
 import com.flashaccommodationbooking.global.common.CommonApiResponse;
+import com.flashaccommodationbooking.support.IntegrationTest;
 import com.flashaccommodationbooking.support.utils.RedisCleanUp;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -25,7 +27,7 @@ import static org.junit.jupiter.api.Assertions.assertAll;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @ActiveProfiles("test")
-class QueueApiE2ETest {
+class QueueApiE2ETest extends IntegrationTest {
 
     private static final String ENDPOINT_ENTER = "/queue/enter";
     private static final String ENDPOINT_STATUS = "/queue/status";
@@ -49,6 +51,11 @@ class QueueApiE2ETest {
     @AfterEach
     void tearDown() {
         redisCleanUp.truncateAll();
+    }
+
+    @BeforeEach
+    void setUpOpenProduct() {
+        saveOpenedProduct(PRODUCT_ID, 0L);
     }
 
     @DisplayName("POST /queue/enter")
@@ -122,6 +129,27 @@ class QueueApiE2ETest {
             assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
             assertThat(response.getBody()).isNotNull();
             assertThat(response.getBody().getCode()).isEqualTo("BAD_REQUEST");
+        }
+
+        @DisplayName("오픈 시간 이전이면, 400 QUEUE_NOT_OPEN을 반환한다.")
+        @Test
+        void returnsBadRequest_whenQueueNotOpen() {
+            // arrange
+            saveOpenedProduct(PRODUCT_ID, System.currentTimeMillis() + 60_000L);
+            QueueV1Dto.EnterRequest request = new QueueV1Dto.EnterRequest(1L, PRODUCT_ID);
+
+            // act
+            ResponseEntity<CommonApiResponse<Void>> response = testRestTemplate.exchange(
+                    ENDPOINT_ENTER,
+                    HttpMethod.POST,
+                    new HttpEntity<>(request),
+                    new ParameterizedTypeReference<>() {}
+            );
+
+            // assert
+            assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+            assertThat(response.getBody()).isNotNull();
+            assertThat(response.getBody().getCode()).isEqualTo("QUEUE_NOT_OPEN");
         }
     }
 
@@ -221,6 +249,10 @@ class QueueApiE2ETest {
                 new ParameterizedTypeReference<>() {}
         );
         return response.getBody().getData().queueToken();
+    }
+
+    private void saveOpenedProduct(Long productId, long openAt) {
+        redisTemplate.opsForHash().put("open:" + productId, "openAt", String.valueOf(openAt));
     }
 
     private HttpHeaders jsonHeaders() {

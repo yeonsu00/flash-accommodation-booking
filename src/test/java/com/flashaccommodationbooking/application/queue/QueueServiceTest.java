@@ -3,6 +3,7 @@ package com.flashaccommodationbooking.application.queue;
 import com.flashaccommodationbooking.domain.queue.QueueStatus;
 import com.flashaccommodationbooking.global.exception.BusinessException;
 import com.flashaccommodationbooking.global.exception.ErrorCode;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -12,7 +13,10 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.util.Collections;
+import java.util.LinkedHashSet;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -21,6 +25,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -43,6 +48,11 @@ class QueueServiceTest {
     @DisplayName("enterQueue()")
     @Nested
     class EnterQueue {
+
+        @BeforeEach
+        void setUpOpenProduct() {
+            when(queueRepository.getProductOpenAt(PRODUCT_ID)).thenReturn(RECEIVED_AT);
+        }
 
         @DisplayName("정상적으로 호출되면, UUID 형식의 대기열 토큰을 반환한다.")
         @Test
@@ -77,6 +87,35 @@ class QueueServiceTest {
             // assert
             verify(queueRepository).addToWaitingQueue(eq(PRODUCT_ID), anyString(), scoreCaptor.capture());
             assertThat(scoreCaptor.getValue()).isEqualTo((double) RECEIVED_AT);
+        }
+
+        @DisplayName("오픈 시간 이전이면, QUEUE_NOT_OPEN 예외가 발생한다.")
+        @Test
+        void throwsException_whenReceivedAtIsBeforeOpenAt() {
+            // arrange
+            when(queueRepository.getProductOpenAt(PRODUCT_ID)).thenReturn(RECEIVED_AT + 1_000L);
+
+            // act & assert
+            BusinessException exception = assertThrows(BusinessException.class, () -> {
+                queueService.enterQueue(USER_ID, PRODUCT_ID, RECEIVED_AT);
+            });
+
+            assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.QUEUE_NOT_OPEN);
+            verify(queueRepository, never()).addToWaitingQueue(anyLong(), anyString(), eq((double) RECEIVED_AT));
+        }
+
+        @DisplayName("오픈 정보가 없으면, QUEUE_NOT_OPEN 예외가 발생한다.")
+        @Test
+        void throwsException_whenProductOpenAtNotFound() {
+            // arrange
+            when(queueRepository.getProductOpenAt(PRODUCT_ID)).thenReturn(null);
+
+            // act & assert
+            BusinessException exception = assertThrows(BusinessException.class, () -> {
+                queueService.enterQueue(USER_ID, PRODUCT_ID, RECEIVED_AT);
+            });
+
+            assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.QUEUE_NOT_OPEN);
         }
     }
 
@@ -169,6 +208,61 @@ class QueueServiceTest {
 
             // assert
             verify(queueRepository, never()).getQueueRank(anyLong(), anyString());
+        }
+    }
+
+    @DisplayName("admitFromQueue()")
+    @Nested
+    class AdmitFromQueue {
+
+        @DisplayName("대기 토큰이 있으면, ADMISSION_BATCH_SIZE만큼 admitted 처리한다.")
+        @Test
+        void admitsWaitingTokens_whenTokensExist() {
+            // arrange
+            Set<String> tokens = new LinkedHashSet<>(Set.of("token-1", "token-2"));
+            when(queueRepository.getWaitingTokens(PRODUCT_ID, 5)).thenReturn(tokens);
+
+            // act
+            queueService.admitFromQueue(PRODUCT_ID);
+
+            // assert
+            verify(queueRepository).admitTokens(PRODUCT_ID, tokens);
+            verify(queueRepository).updateTokenStatus("token-1", QueueStatus.ADMITTED);
+            verify(queueRepository).updateTokenStatus("token-2", QueueStatus.ADMITTED);
+            verify(queueRepository).removeFromWaitingQueue(PRODUCT_ID, tokens);
+        }
+
+        @DisplayName("대기 토큰이 없으면, admitted 처리를 호출하지 않는다.")
+        @Test
+        void doesNothing_whenWaitingTokensEmpty() {
+            // arrange
+            when(queueRepository.getWaitingTokens(PRODUCT_ID, 5)).thenReturn(Collections.emptySet());
+
+            // act
+            queueService.admitFromQueue(PRODUCT_ID);
+
+            // assert
+            verify(queueRepository, never()).admitTokens(anyLong(), eq(Collections.emptySet()));
+            verify(queueRepository, never()).updateTokenStatus(anyString(), eq(QueueStatus.ADMITTED));
+            verify(queueRepository, never()).removeFromWaitingQueue(anyLong(), eq(Collections.emptySet()));
+        }
+
+        @DisplayName("admitted 처리 시, admitTokens → 상태 변경 → 대기열 삭제 순서로 호출한다.")
+        @Test
+        void processesInOrder_whenAdmittingTokens() {
+            // arrange
+            Set<String> tokens = Set.of(QUEUE_TOKEN);
+            when(queueRepository.getWaitingTokens(PRODUCT_ID, 5)).thenReturn(tokens);
+            var inOrder = inOrder(queueRepository);
+
+            // act
+            queueService.admitFromQueue(PRODUCT_ID);
+
+            // assert
+            inOrder.verify(queueRepository).getWaitingTokens(PRODUCT_ID, 5);
+            inOrder.verify(queueRepository).admitTokens(PRODUCT_ID, tokens);
+            inOrder.verify(queueRepository).updateTokenStatus(QUEUE_TOKEN, QueueStatus.ADMITTED);
+            inOrder.verify(queueRepository).removeFromWaitingQueue(PRODUCT_ID, tokens);
         }
     }
 
