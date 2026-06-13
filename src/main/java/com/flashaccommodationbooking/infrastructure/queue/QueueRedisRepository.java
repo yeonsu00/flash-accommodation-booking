@@ -2,11 +2,17 @@ package com.flashaccommodationbooking.infrastructure.queue;
 
 import com.flashaccommodationbooking.domain.queue.QueueStatus;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.redis.core.Cursor;
+import org.springframework.data.redis.core.ScanOptions;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Repository;
 
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 @Repository
@@ -16,7 +22,9 @@ public class QueueRedisRepository {
     private final StringRedisTemplate redisTemplate;
 
     private static final String WAITING_QUEUE_PREFIX = "queue:waiting:";
+    private static final String ADMITTED_PREFIX = "queue:admitted:";
     private static final String TOKEN_INFO_PREFIX = "queue:token:";
+    private static final String OPEN_PREFIX = "open:";
     private static final long TOKEN_TTL_SECONDS = 1800L;
 
     public void addToWaitingQueue(Long productId, String queueToken, double score) {
@@ -40,6 +48,41 @@ public class QueueRedisRepository {
 
     public Long getQueueRank(Long productId, String queueToken) {
         return redisTemplate.opsForZSet().rank(WAITING_QUEUE_PREFIX + productId, queueToken);
+    }
+
+    public List<Long> getOpenedProductIds() {
+        List<Long> productIds = new ArrayList<>();
+        long now = System.currentTimeMillis();
+        ScanOptions options = ScanOptions.scanOptions()
+                .match(OPEN_PREFIX + "*")
+                .count(100)
+                .build();
+        try (Cursor<String> cursor = redisTemplate.scan(options)) {
+            cursor.forEachRemaining(key -> {
+                Object value = redisTemplate.opsForHash().get(key, "openAt");
+                if (value != null && now >= Long.parseLong((String) value)) {
+                    productIds.add(Long.parseLong(key.substring(OPEN_PREFIX.length())));
+                }
+            });
+        }
+        return productIds;
+    }
+
+    public Set<String> getWaitingTokens(Long productId, int count) {
+        Set<String> result = redisTemplate.opsForZSet().range(WAITING_QUEUE_PREFIX + productId, 0, count - 1);
+        return result != null ? result : Collections.emptySet();
+    }
+
+    public void admitTokens(Long productId, Set<String> tokens) {
+        redisTemplate.opsForSet().add(ADMITTED_PREFIX + productId, tokens.toArray(new String[0]));
+    }
+
+    public void updateTokenStatus(String queueToken, String status) {
+        redisTemplate.opsForHash().put(TOKEN_INFO_PREFIX + queueToken, "status", status);
+    }
+
+    public void removeFromWaitingQueue(Long productId, Set<String> tokens) {
+        redisTemplate.opsForZSet().remove(WAITING_QUEUE_PREFIX + productId, tokens.toArray());
     }
 
 }

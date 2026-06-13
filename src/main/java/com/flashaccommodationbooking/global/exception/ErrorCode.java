@@ -17,6 +17,7 @@ public enum ErrorCode {
     PRODUCT_OUT_OF_STOCK(409, "PRODUCT_OUT_OF_STOCK", "재고가 소진되었습니다."),
 
     // Queue
+    QUEUE_NOT_OPEN(400, "QUEUE_NOT_OPEN", "아직 대기열 등록 시간이 아닙니다."),
     QUEUE_TOKEN_NOT_FOUND(404, "QUEUE_TOKEN_NOT_FOUND", "유효하지 않거나 만료된 대기열 토큰입니다."),
 
     // Payment

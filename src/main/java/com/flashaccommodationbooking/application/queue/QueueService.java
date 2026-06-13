@@ -6,11 +6,15 @@ import com.flashaccommodationbooking.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
 public class QueueService {
+
+    private static final int ADMISSION_BATCH_SIZE = 5;
 
     private final QueueRepository queueRepository;
 
@@ -33,5 +37,20 @@ public class QueueService {
 
         Long rank = queueRepository.getQueueRank(tokenInfo.productId(), queueToken);
         return QueueInfo.StatusInfo.waiting(rank != null ? rank + 1 : null);
+    }
+
+    public List<Long> getOpenedProductIds() {
+        return queueRepository.getOpenedProductIds();
+    }
+
+    public void admitFromQueue(Long productId) {
+        Set<String> tokens = queueRepository.getWaitingTokens(productId, ADMISSION_BATCH_SIZE);
+        if (tokens.isEmpty()) {
+            return;
+        }
+
+        queueRepository.admitTokens(productId, tokens);
+        tokens.forEach(token -> queueRepository.updateTokenStatus(token, QueueStatus.ADMITTED));
+        queueRepository.removeFromWaitingQueue(productId, tokens);
     }
 }

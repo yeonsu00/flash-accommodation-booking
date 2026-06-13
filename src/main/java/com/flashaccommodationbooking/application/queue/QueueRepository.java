@@ -1,6 +1,10 @@
 package com.flashaccommodationbooking.application.queue;
 
+import com.flashaccommodationbooking.domain.queue.QueueStatus;
+
+import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 public interface QueueRepository {
 
@@ -11,5 +15,15 @@ public interface QueueRepository {
     Optional<QueueInfo.TokenInfo> getQueueTokenInfo(String queueToken);
 
     Long getQueueRank(Long productId, String queueToken);
+
+    List<Long> getOpenedProductIds();
+
+    Set<String> getWaitingTokens(Long productId, int count);
+
+    void admitTokens(Long productId, Set<String> tokens);
+
+    void updateTokenStatus(String queueToken, QueueStatus status);
+
+    void removeFromWaitingQueue(Long productId, Set<String> tokens);
 
 }
