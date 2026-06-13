@@ -62,6 +62,16 @@ public class QueueRepositoryImpl implements QueueRepository {
     }
 
     @Override
+    public boolean isAdmitted(Long productId, String queueToken) {
+        return queueRedisRepository.isAdmitted(productId, queueToken);
+    }
+
+    @Override
+    public void removeFromAdmitted(Long productId, String queueToken) {
+        queueRedisRepository.removeFromAdmitted(productId, queueToken);
+    }
+
+    @Override
     public void updateTokenStatus(String queueToken, QueueStatus status) {
         queueRedisRepository.updateTokenStatus(queueToken, status.name());
     }

@@ -82,6 +82,15 @@ public class QueueRedisRepository {
         redisTemplate.opsForSet().add(ADMITTED_PREFIX + productId, tokens.toArray(new String[0]));
     }
 
+    public boolean isAdmitted(Long productId, String queueToken) {
+        Boolean result = redisTemplate.opsForSet().isMember(ADMITTED_PREFIX + productId, queueToken);
+        return Boolean.TRUE.equals(result);
+    }
+
+    public void removeFromAdmitted(Long productId, String queueToken) {
+        redisTemplate.opsForSet().remove(ADMITTED_PREFIX + productId, (Object) queueToken);
+    }
+
     public void updateTokenStatus(String queueToken, String status) {
         redisTemplate.opsForHash().put(TOKEN_INFO_PREFIX + queueToken, "status", status);
     }

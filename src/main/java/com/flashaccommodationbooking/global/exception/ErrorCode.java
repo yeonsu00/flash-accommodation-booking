@@ -20,6 +20,9 @@ public enum ErrorCode {
     QUEUE_NOT_OPEN(400, "QUEUE_NOT_OPEN", "아직 대기열 등록 시간이 아닙니다."),
     QUEUE_TOKEN_NOT_FOUND(404, "QUEUE_TOKEN_NOT_FOUND", "유효하지 않거나 만료된 대기열 토큰입니다."),
 
+    // Checkout
+    CHECKOUT_NOT_ADMITTED(403, "CHECKOUT_NOT_ADMITTED", "입장 허가된 사용자가 아닙니다."),
+
     // Payment
     INSUFFICIENT_POINT(400, "INSUFFICIENT_POINT", "포인트가 부족합니다.");
 

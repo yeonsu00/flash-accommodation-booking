@@ -44,6 +44,19 @@ public class QueueService {
         return QueueInfo.StatusInfo.waiting(rank != null ? rank + 1 : null);
     }
 
+    public QueueInfo.TokenInfo getTokenInfo(String queueToken) {
+        return queueRepository.getQueueTokenInfo(queueToken)
+                .orElseThrow(() -> new BusinessException(ErrorCode.QUEUE_TOKEN_NOT_FOUND));
+    }
+
+    public boolean isAdmitted(Long productId, String queueToken) {
+        return queueRepository.isAdmitted(productId, queueToken);
+    }
+
+    public void removeFromAdmitted(Long productId, String queueToken) {
+        queueRepository.removeFromAdmitted(productId, queueToken);
+    }
+
     public List<Long> getOpenedProductIds() {
         return queueRepository.getOpenedProductIds();
     }

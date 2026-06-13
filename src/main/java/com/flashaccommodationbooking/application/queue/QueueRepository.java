@@ -24,6 +24,10 @@ public interface QueueRepository {
 
     void admitTokens(Long productId, Set<String> tokens);
 
+    boolean isAdmitted(Long productId, String queueToken);
+
+    void removeFromAdmitted(Long productId, String queueToken);
+
     void updateTokenStatus(String queueToken, QueueStatus status);
 
     void removeFromWaitingQueue(Long productId, Set<String> tokens);
