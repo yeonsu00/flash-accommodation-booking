@@ -18,4 +18,9 @@ public class CheckoutService {
         }
     }
 
+    public CheckoutInfo.TokenInfo getCheckoutTokenInfo(String checkoutToken) {
+        return checkoutRepository.getCheckoutTokenInfo(checkoutToken)
+                .orElseThrow(() -> new BusinessException(ErrorCode.CHECKOUT_TOKEN_NOT_FOUND));
+    }
+
 }

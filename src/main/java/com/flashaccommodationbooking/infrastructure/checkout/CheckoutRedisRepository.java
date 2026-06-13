@@ -6,6 +6,7 @@ import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 @RequiredArgsConstructor
@@ -26,6 +27,10 @@ public class CheckoutRedisRepository {
             redis.call('SET', KEYS[2], ARGV[1], 'EX', ARGV[2])
             return 1
             """, Long.class);
+
+    public Optional<String> getCheckoutTokenValue(String checkoutToken) {
+        return Optional.ofNullable(redisTemplate.opsForValue().get(CHECKOUT_PREFIX + checkoutToken));
+    }
 
     public long reserveStock(Long productId, Long userId, String checkoutToken) {
         List<String> keys = List.of(

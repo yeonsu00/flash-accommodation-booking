@@ -22,6 +22,10 @@ public enum ErrorCode {
 
     // Checkout
     CHECKOUT_NOT_ADMITTED(403, "CHECKOUT_NOT_ADMITTED", "입장 허가된 사용자가 아닙니다."),
+    CHECKOUT_TOKEN_NOT_FOUND(404, "CHECKOUT_TOKEN_NOT_FOUND", "유효하지 않거나 만료된 주문 토큰입니다."),
+
+    // User
+    USER_NOT_FOUND(404, "USER_NOT_FOUND", "사용자를 찾을 수 없습니다."),
 
     // Payment
     INSUFFICIENT_POINT(400, "INSUFFICIENT_POINT", "포인트가 부족합니다.");
