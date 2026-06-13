@@ -10,6 +10,8 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.util.Optional;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -56,6 +58,40 @@ class CheckoutServiceTest {
             });
 
             assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.PRODUCT_OUT_OF_STOCK);
+        }
+    }
+
+    @DisplayName("getCheckoutTokenInfo()")
+    @Nested
+    class GetCheckoutTokenInfo {
+
+        @DisplayName("checkoutToken 정보가 있으면, TokenInfo를 반환한다.")
+        @Test
+        void returnsTokenInfo_whenCheckoutTokenExists() {
+            // arrange
+            CheckoutInfo.TokenInfo tokenInfo = new CheckoutInfo.TokenInfo(USER_ID, PRODUCT_ID);
+            when(checkoutRepository.getCheckoutTokenInfo(CHECKOUT_TOKEN)).thenReturn(Optional.of(tokenInfo));
+
+            // act
+            CheckoutInfo.TokenInfo result = checkoutService.getCheckoutTokenInfo(CHECKOUT_TOKEN);
+
+            // assert
+            assertThat(result).isEqualTo(tokenInfo);
+            verify(checkoutRepository).getCheckoutTokenInfo(CHECKOUT_TOKEN);
+        }
+
+        @DisplayName("checkoutToken 정보가 없으면, CHECKOUT_TOKEN_NOT_FOUND 예외가 발생한다.")
+        @Test
+        void throwsException_whenCheckoutTokenNotFound() {
+            // arrange
+            when(checkoutRepository.getCheckoutTokenInfo(CHECKOUT_TOKEN)).thenReturn(Optional.empty());
+
+            // act & assert
+            BusinessException exception = assertThrows(BusinessException.class, () -> {
+                checkoutService.getCheckoutTokenInfo(CHECKOUT_TOKEN);
+            });
+
+            assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.CHECKOUT_TOKEN_NOT_FOUND);
         }
     }
 }

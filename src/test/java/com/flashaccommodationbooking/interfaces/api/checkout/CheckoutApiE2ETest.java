@@ -1,7 +1,11 @@
 package com.flashaccommodationbooking.interfaces.api.checkout;
 
+import com.flashaccommodationbooking.domain.product.AccommodationProduct;
 import com.flashaccommodationbooking.domain.queue.QueueStatus;
+import com.flashaccommodationbooking.domain.user.User;
 import com.flashaccommodationbooking.global.common.CommonApiResponse;
+import com.flashaccommodationbooking.infrastructure.product.ProductJpaRepository;
+import com.flashaccommodationbooking.infrastructure.user.UserJpaRepository;
 import com.flashaccommodationbooking.support.IntegrationTest;
 import com.flashaccommodationbooking.support.utils.RedisCleanUp;
 import org.junit.jupiter.api.AfterEach;
@@ -21,6 +25,7 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.test.context.ActiveProfiles;
 
+import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -37,25 +42,35 @@ class CheckoutApiE2ETest extends IntegrationTest {
     private static final Long USER_ID = 1L;
     private static final String ADMITTED_KEY = "queue:admitted:" + PRODUCT_ID;
     private static final String STOCK_KEY = "stock:" + PRODUCT_ID;
+    private static final LocalDateTime CHECK_IN = LocalDateTime.of(2026, 7, 1, 15, 0);
+    private static final LocalDateTime CHECK_OUT = LocalDateTime.of(2026, 7, 2, 11, 0);
 
     private final TestRestTemplate testRestTemplate;
     private final StringRedisTemplate redisTemplate;
     private final RedisCleanUp redisCleanUp;
+    private final ProductJpaRepository productJpaRepository;
+    private final UserJpaRepository userJpaRepository;
 
     @Autowired
     CheckoutApiE2ETest(
             TestRestTemplate testRestTemplate,
             StringRedisTemplate redisTemplate,
-            RedisCleanUp redisCleanUp
+            RedisCleanUp redisCleanUp,
+            ProductJpaRepository productJpaRepository,
+            UserJpaRepository userJpaRepository
     ) {
         this.testRestTemplate = testRestTemplate;
         this.redisTemplate = redisTemplate;
         this.redisCleanUp = redisCleanUp;
+        this.productJpaRepository = productJpaRepository;
+        this.userJpaRepository = userJpaRepository;
     }
 
     @AfterEach
     void tearDown() {
         redisCleanUp.truncateAll();
+        userJpaRepository.deleteAll();
+        productJpaRepository.deleteAll();
     }
 
     @DisplayName("POST /checkout")
@@ -183,6 +198,114 @@ class CheckoutApiE2ETest extends IntegrationTest {
             assertThat(response.getBody().getCode()).isEqualTo("PRODUCT_OUT_OF_STOCK");
             assertThat(redisTemplate.opsForSet().isMember(ADMITTED_KEY, queueToken)).isTrue();
         }
+    }
+
+    @DisplayName("GET /checkout/{checkoutToken}")
+    @Nested
+    class GetOrderSheet {
+
+        @DisplayName("유효한 checkoutToken이면, 200과 product + point + checkoutToken을 반환한다.")
+        @Test
+        void returnsOrderSheet_whenCheckoutTokenIsValid() {
+            // arrange
+            User user = userJpaRepository.save(User.of("test-user", 150_000));
+            AccommodationProduct product = productJpaRepository.save(
+                    AccommodationProduct.of("강남 호텔", 200_000, CHECK_IN, CHECK_OUT, LocalDateTime.now().minusHours(1), 10)
+            );
+            String checkoutToken = UUID.randomUUID().toString();
+            saveCheckoutToken(checkoutToken, user.getId(), product.getId());
+
+            // act
+            ResponseEntity<CommonApiResponse<CheckoutV1Dto.OrderSheetResponse>> response = testRestTemplate.exchange(
+                    ENDPOINT_CHECKOUT + "/" + checkoutToken,
+                    HttpMethod.GET,
+                    null,
+                    new ParameterizedTypeReference<>() {}
+            );
+
+            // assert
+            assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+            assertThat(response.getBody()).isNotNull();
+
+            CheckoutV1Dto.OrderSheetResponse data = response.getBody().getData();
+            assertAll(
+                    () -> assertThat(response.getBody().getCode()).isEqualTo("SUCCESS"),
+                    () -> assertThat(data.checkoutToken()).isEqualTo(checkoutToken),
+                    () -> assertThat(data.point()).isEqualTo(150_000),
+                    () -> assertThat(data.product().id()).isEqualTo(product.getId()),
+                    () -> assertThat(data.product().name()).isEqualTo("강남 호텔"),
+                    () -> assertThat(data.product().price()).isEqualTo(200_000),
+                    () -> assertThat(data.product().checkIn()).isEqualTo(CHECK_IN),
+                    () -> assertThat(data.product().checkOut()).isEqualTo(CHECK_OUT)
+            );
+        }
+
+        @DisplayName("존재하지 않거나 만료된 checkoutToken이면, 404 CHECKOUT_TOKEN_NOT_FOUND를 반환한다.")
+        @Test
+        void returnsNotFound_whenCheckoutTokenInvalid() {
+            // act
+            ResponseEntity<CommonApiResponse<Void>> response = testRestTemplate.exchange(
+                    ENDPOINT_CHECKOUT + "/" + UUID.randomUUID(),
+                    HttpMethod.GET,
+                    null,
+                    new ParameterizedTypeReference<>() {}
+            );
+
+            // assert
+            assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+            assertThat(response.getBody()).isNotNull();
+            assertThat(response.getBody().getCode()).isEqualTo("CHECKOUT_TOKEN_NOT_FOUND");
+        }
+
+        @DisplayName("checkoutToken은 유효하나 productId가 DB에 없으면, 404 PRODUCT_NOT_FOUND를 반환한다.")
+        @Test
+        void returnsNotFound_whenProductNotFound() {
+            // arrange
+            User user = userJpaRepository.save(User.of("test-user", 150_000));
+            String checkoutToken = UUID.randomUUID().toString();
+            saveCheckoutToken(checkoutToken, user.getId(), 9_999L);
+
+            // act
+            ResponseEntity<CommonApiResponse<Void>> response = testRestTemplate.exchange(
+                    ENDPOINT_CHECKOUT + "/" + checkoutToken,
+                    HttpMethod.GET,
+                    null,
+                    new ParameterizedTypeReference<>() {}
+            );
+
+            // assert
+            assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+            assertThat(response.getBody()).isNotNull();
+            assertThat(response.getBody().getCode()).isEqualTo("PRODUCT_NOT_FOUND");
+        }
+
+        @DisplayName("checkoutToken은 유효하나 userId가 DB에 없으면, 404 USER_NOT_FOUND를 반환한다.")
+        @Test
+        void returnsNotFound_whenUserNotFound() {
+            // arrange
+            AccommodationProduct product = productJpaRepository.save(
+                    AccommodationProduct.of("강남 호텔", 200_000, CHECK_IN, CHECK_OUT, LocalDateTime.now().minusHours(1), 10)
+            );
+            String checkoutToken = UUID.randomUUID().toString();
+            saveCheckoutToken(checkoutToken, 9_999L, product.getId());
+
+            // act
+            ResponseEntity<CommonApiResponse<Void>> response = testRestTemplate.exchange(
+                    ENDPOINT_CHECKOUT + "/" + checkoutToken,
+                    HttpMethod.GET,
+                    null,
+                    new ParameterizedTypeReference<>() {}
+            );
+
+            // assert
+            assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+            assertThat(response.getBody()).isNotNull();
+            assertThat(response.getBody().getCode()).isEqualTo("USER_NOT_FOUND");
+        }
+    }
+
+    private void saveCheckoutToken(String checkoutToken, Long userId, Long productId) {
+        redisTemplate.opsForValue().set("checkout:" + checkoutToken, userId + ":" + productId);
     }
 
     private void initStock(Long productId, int stock) {
