@@ -19,6 +19,8 @@ public class RedisCleanUp {
         deleteByPattern("queue:token:*");
         deleteByPattern("queue:admitted:*");
         deleteByPattern("open:*");
+        deleteByPattern("stock:*");
+        deleteByPattern("checkout:*");
     }
 
     private void deleteByPattern(String pattern) {
