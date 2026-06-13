@@ -89,6 +89,30 @@ class QueueServiceTest {
             assertThat(scoreCaptor.getValue()).isEqualTo((double) RECEIVED_AT);
         }
 
+        @DisplayName("호출되면, 상품 오픈 시간을 먼저 조회한다.")
+        @Test
+        void callsGetProductOpenAt_whenEnterQueue() {
+            // act
+            queueService.enterQueue(USER_ID, PRODUCT_ID, RECEIVED_AT);
+
+            // assert
+            verify(queueRepository, times(1)).getProductOpenAt(PRODUCT_ID);
+        }
+
+        @DisplayName("요청 시각이 오픈 시간과 같으면, 대기열에 등록한다.")
+        @Test
+        void entersQueue_whenReceivedAtEqualsOpenAt() {
+            // arrange
+            when(queueRepository.getProductOpenAt(PRODUCT_ID)).thenReturn(RECEIVED_AT);
+
+            // act
+            String queueToken = queueService.enterQueue(USER_ID, PRODUCT_ID, RECEIVED_AT);
+
+            // assert
+            assertThat(UUID.fromString(queueToken)).isNotNull();
+            verify(queueRepository).addToWaitingQueue(eq(PRODUCT_ID), anyString(), eq((double) RECEIVED_AT));
+        }
+
         @DisplayName("오픈 시간 이전이면, QUEUE_NOT_OPEN 예외가 발생한다.")
         @Test
         void throwsException_whenReceivedAtIsBeforeOpenAt() {
@@ -102,6 +126,7 @@ class QueueServiceTest {
 
             assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.QUEUE_NOT_OPEN);
             verify(queueRepository, never()).addToWaitingQueue(anyLong(), anyString(), eq((double) RECEIVED_AT));
+            verify(queueRepository, never()).saveQueueTokenInfo(anyString(), anyLong(), anyLong(), anyLong());
         }
 
         @DisplayName("오픈 정보가 없으면, QUEUE_NOT_OPEN 예외가 발생한다.")
@@ -116,6 +141,8 @@ class QueueServiceTest {
             });
 
             assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.QUEUE_NOT_OPEN);
+            verify(queueRepository, never()).addToWaitingQueue(anyLong(), anyString(), anyLong());
+            verify(queueRepository, never()).saveQueueTokenInfo(anyString(), anyLong(), anyLong(), anyLong());
         }
     }
 

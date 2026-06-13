@@ -151,6 +151,27 @@ class QueueApiE2ETest extends IntegrationTest {
             assertThat(response.getBody()).isNotNull();
             assertThat(response.getBody().getCode()).isEqualTo("QUEUE_NOT_OPEN");
         }
+
+        @DisplayName("오픈 정보가 없으면, 400 QUEUE_NOT_OPEN을 반환한다.")
+        @Test
+        void returnsBadRequest_whenProductOpenInfoNotFound() {
+            // arrange
+            redisTemplate.delete("open:" + PRODUCT_ID);
+            QueueV1Dto.EnterRequest request = new QueueV1Dto.EnterRequest(1L, PRODUCT_ID);
+
+            // act
+            ResponseEntity<CommonApiResponse<Void>> response = testRestTemplate.exchange(
+                    ENDPOINT_ENTER,
+                    HttpMethod.POST,
+                    new HttpEntity<>(request),
+                    new ParameterizedTypeReference<>() {}
+            );
+
+            // assert
+            assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+            assertThat(response.getBody()).isNotNull();
+            assertThat(response.getBody().getCode()).isEqualTo("QUEUE_NOT_OPEN");
+        }
     }
 
     @DisplayName("GET /queue/status")

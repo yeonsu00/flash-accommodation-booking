@@ -119,6 +119,35 @@ class QueueServiceIntegrationTest extends IntegrationTest {
             });
 
             assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.QUEUE_NOT_OPEN);
+            assertThat(redisTemplate.hasKey(WAITING_QUEUE_KEY)).isFalse();
+        }
+
+        @DisplayName("오픈 정보가 없으면, QUEUE_NOT_OPEN 예외가 발생한다.")
+        @Test
+        void throwsException_whenProductOpenAtNotFound() {
+            // arrange
+            redisTemplate.delete("open:" + PRODUCT_ID);
+
+            // act & assert
+            BusinessException exception = assertThrows(BusinessException.class, () -> {
+                queueService.enterQueue(1L, PRODUCT_ID, 1_000L);
+            });
+
+            assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.QUEUE_NOT_OPEN);
+        }
+
+        @DisplayName("요청 시각이 오픈 시간과 같으면, 대기열에 등록한다.")
+        @Test
+        void entersQueue_whenReceivedAtEqualsOpenAt() {
+            // arrange
+            long openAt = 5_000L;
+            saveOpenedProduct(PRODUCT_ID, openAt);
+
+            // act
+            String queueToken = queueService.enterQueue(1L, PRODUCT_ID, openAt);
+
+            // assert
+            assertThat(redisTemplate.opsForZSet().score(WAITING_QUEUE_KEY, queueToken)).isEqualTo((double) openAt);
         }
     }
 
