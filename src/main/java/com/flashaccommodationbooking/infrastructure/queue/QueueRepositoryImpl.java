@@ -47,6 +47,11 @@ public class QueueRepositoryImpl implements QueueRepository {
     }
 
     @Override
+    public Long getProductOpenAt(Long productId) {
+        return queueRedisRepository.getProductOpenAt(productId);
+    }
+
+    @Override
     public Set<String> getWaitingTokens(Long productId, int count) {
         return queueRedisRepository.getWaitingTokens(productId, count);
     }

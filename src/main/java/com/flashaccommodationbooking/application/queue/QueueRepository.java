@@ -18,6 +18,8 @@ public interface QueueRepository {
 
     List<Long> getOpenedProductIds();
 
+    Long getProductOpenAt(Long productId);
+
     Set<String> getWaitingTokens(Long productId, int count);
 
     void admitTokens(Long productId, Set<String> tokens);

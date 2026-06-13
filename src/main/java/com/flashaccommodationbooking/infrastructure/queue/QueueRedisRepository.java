@@ -68,6 +68,11 @@ public class QueueRedisRepository {
         return productIds;
     }
 
+    public Long getProductOpenAt(Long productId) {
+        Object value = redisTemplate.opsForHash().get(OPEN_PREFIX + productId, "openAt");
+        return value != null ? Long.parseLong((String) value) : null;
+    }
+
     public Set<String> getWaitingTokens(Long productId, int count) {
         Set<String> result = redisTemplate.opsForZSet().range(WAITING_QUEUE_PREFIX + productId, 0, count - 1);
         return result != null ? result : Collections.emptySet();

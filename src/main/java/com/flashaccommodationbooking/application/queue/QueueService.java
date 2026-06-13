@@ -19,6 +19,11 @@ public class QueueService {
     private final QueueRepository queueRepository;
 
     public String enterQueue(Long userId, Long productId, long receivedAt) {
+        Long openAt = queueRepository.getProductOpenAt(productId);
+        if (openAt == null || receivedAt < openAt) {
+            throw new BusinessException(ErrorCode.QUEUE_NOT_OPEN);
+        }
+
         String queueToken = UUID.randomUUID().toString();
 
         queueRepository.addToWaitingQueue(productId, queueToken, receivedAt);
