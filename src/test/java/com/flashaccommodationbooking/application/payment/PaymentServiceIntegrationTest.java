@@ -163,4 +163,25 @@ class PaymentServiceIntegrationTest extends IntegrationTest {
 
         assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.INSUFFICIENT_POINT);
     }
+
+    @DisplayName("동일 idempotencyKey로 Payment 저장 재시도 시 DUPLICATE_PAYMENT 예외가 발생한다")
+    @Test
+    void throwsDuplicatePayment_whenSameIdempotencyKeySavedTwice() {
+        // arrange
+        String idempotencyKey = UUID.randomUUID().toString();
+        List<PaymentCommand.Method> methods = List.of(BookingTestFixtures.creditCardMethod());
+        paymentService.processPayments(booking.getId(), idempotencyKey, methods, user.getId());
+
+        Booking duplicateBooking = bookingJpaRepository.save(
+                Booking.of(user, product, BookingTestFixtures.PRODUCT_PRICE)
+        );
+
+        // act & assert
+        BusinessException exception = assertThrows(BusinessException.class, () ->
+                paymentService.processPayments(duplicateBooking.getId(), idempotencyKey, methods, user.getId())
+        );
+
+        assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.DUPLICATE_PAYMENT);
+        assertThat(paymentJpaRepository.count()).isEqualTo(1);
+    }
 }
