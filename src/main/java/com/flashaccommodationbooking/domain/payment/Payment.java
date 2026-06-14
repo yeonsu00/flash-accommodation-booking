@@ -1,6 +1,5 @@
 package com.flashaccommodationbooking.domain.payment;
 
-import com.flashaccommodationbooking.domain.booking.Booking;
 import com.flashaccommodationbooking.global.entity.BaseEntity;
 import jakarta.persistence.*;
 import lombok.Builder;
@@ -17,9 +16,8 @@ public class Payment extends BaseEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @OneToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "booking_id", nullable = false)
-    private Booking booking;
+    @Column(name = "booking_id", nullable = false)
+    private Long bookingId;
 
     @Column(length = 64, unique = true, nullable = false)
     private String idempotencyKey;
@@ -32,16 +30,16 @@ public class Payment extends BaseEntity {
     private int totalAmount;
 
     @Builder
-    private Payment(Booking booking, String idempotencyKey, int totalAmount) {
-        this.booking = booking;
+    private Payment(Long bookingId, String idempotencyKey, int totalAmount) {
+        this.bookingId = bookingId;
         this.idempotencyKey = idempotencyKey;
         this.totalAmount = totalAmount;
         this.status = PaymentStatus.PENDING;
     }
 
-    public static Payment of(Booking booking, String idempotencyKey, int totalAmount) {
+    public static Payment of(Long bookingId, String idempotencyKey, int totalAmount) {
         return Payment.builder()
-                .booking(booking)
+                .bookingId(bookingId)
                 .idempotencyKey(idempotencyKey)
                 .totalAmount(totalAmount)
                 .build();
