@@ -12,6 +12,7 @@ import com.flashaccommodationbooking.global.exception.ErrorCode;
 import com.flashaccommodationbooking.infrastructure.booking.BookingJpaRepository;
 import com.flashaccommodationbooking.infrastructure.payment.PaymentJpaRepository;
 import com.flashaccommodationbooking.infrastructure.payment.PaymentMethodDetailJpaRepository;
+import com.flashaccommodationbooking.infrastructure.payment.PgPaymentSimulator;
 import com.flashaccommodationbooking.infrastructure.product.ProductJpaRepository;
 import com.flashaccommodationbooking.infrastructure.user.UserJpaRepository;
 import com.flashaccommodationbooking.support.BookingTestFixtures;
@@ -23,6 +24,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
@@ -30,6 +32,9 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.reset;
 
 @SpringBootTest
 @ActiveProfiles("test")
@@ -53,6 +58,9 @@ class PaymentServiceIntegrationTest extends IntegrationTest {
     @Autowired
     private ProductJpaRepository productJpaRepository;
 
+    @MockitoSpyBean
+    private PgPaymentSimulator pgPaymentSimulator;
+
     private User user;
     private AccommodationProduct product;
     private Booking booking;
@@ -68,6 +76,11 @@ class PaymentServiceIntegrationTest extends IntegrationTest {
         user = userJpaRepository.save(BookingTestFixtures.defaultUser());
         product = productJpaRepository.save(BookingTestFixtures.defaultProduct());
         booking = bookingJpaRepository.save(Booking.of(user, product, BookingTestFixtures.PRODUCT_PRICE));
+
+        reset(pgPaymentSimulator);
+        doReturn(UUID.randomUUID().toString())
+                .when(pgPaymentSimulator)
+                .approve(any());
     }
 
     @AfterEach
