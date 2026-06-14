@@ -28,3 +28,23 @@ spring:
 
 server:
   port: 8080
+
+resilience4j:
+  retry:
+    instances:
+      pg-api:
+        max-attempts: 3
+        wait-duration: 500ms
+        retry-exceptions:
+          - com.flashaccommodationbooking.global.exception.PgNetworkException
+        ignore-exceptions:
+          - com.flashaccommodationbooking.global.exception.BusinessException
+  circuit-breaker:
+    instances:
+      pg-api:
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 30s
+        sliding-window-size: 10
+        permitted-number-of-calls-in-half-open-state: 5
+        ignore-exceptions:
+          - com.flashaccommodationbooking.global.exception.BusinessException

@@ -35,7 +35,8 @@ public enum ErrorCode {
 
     // Payment
     INSUFFICIENT_POINT(400, "INSUFFICIENT_POINT", "포인트가 부족합니다."),
-    INVALID_PAYMENT_METHOD(400, "INVALID_PAYMENT_METHOD", "유효하지 않은 결제 수단입니다.");
+    INVALID_PAYMENT_METHOD(400, "INVALID_PAYMENT_METHOD", "유효하지 않은 결제 수단입니다."),
+    PG_SERVICE_UNAVAILABLE(503, "PG_SERVICE_UNAVAILABLE", "결제 서비스가 일시적으로 이용 불가합니다. 잠시 후 다시 시도해주세요.");
 
     private final int status;
     private final String code;
