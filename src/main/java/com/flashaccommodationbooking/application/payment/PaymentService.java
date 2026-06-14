@@ -27,7 +27,7 @@ public class PaymentService {
                                 List<PaymentCommand.Method> methods, Long userId) {
         int totalAmount = methods.stream().mapToInt(PaymentCommand.Method::amount).sum();
         Payment payment = Payment.of(bookingId, idempotencyKey, totalAmount);
-        paymentRepository.save(payment);
+        paymentRepository.savePayment(payment);
 
         List<PaymentCommand.Request> processedPgCommands = new ArrayList<>();
 

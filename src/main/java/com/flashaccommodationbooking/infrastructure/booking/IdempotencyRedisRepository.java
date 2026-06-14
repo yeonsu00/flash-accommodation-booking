@@ -1,7 +1,5 @@
 package com.flashaccommodationbooking.infrastructure.booking;
 
-import com.flashaccommodationbooking.global.exception.BusinessException;
-import com.flashaccommodationbooking.global.exception.ErrorCode;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -49,13 +47,13 @@ public class IdempotencyRedisRepository {
     }
 
     private boolean setProcessingFallback(String key, Exception e) {
-        log.error("Redis 장애 - 멱등성 처리 불가 [key: {}, reason: {}]", key, e.getMessage());
-        throw new BusinessException(ErrorCode.REDIS_UNAVAILABLE);
+        log.warn("Redis 장애 - 멱등성 체크 불가, 요청 허용 (DB UNIQUE 제약이 2차 방어) [key: {}, reason: {}]", key, e.getMessage());
+        return true;
     }
 
     private Optional<Long> getBookingIdFallback(String key, Exception e) {
-        log.error("Redis 장애 - 멱등키 조회 불가 [key: {}, reason: {}]", key, e.getMessage());
-        throw new BusinessException(ErrorCode.REDIS_UNAVAILABLE);
+        log.warn("Redis 장애 - 멱등키 조회 불가 [key: {}, reason: {}]", key, e.getMessage());
+        return Optional.empty();
     }
 
     private void saveResultFallback(String key, Long bookingId, Exception e) {

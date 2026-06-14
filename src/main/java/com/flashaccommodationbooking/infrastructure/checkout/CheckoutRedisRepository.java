@@ -54,13 +54,13 @@ public class CheckoutRedisRepository {
     }
 
     private Optional<String> getCheckoutTokenValueFallback(String checkoutToken, Exception e) {
-        log.error("Redis 장애 - checkoutToken 조회 불가 [token: {}, reason: {}]", checkoutToken, e.getMessage());
-        throw new BusinessException(ErrorCode.REDIS_UNAVAILABLE);
+        log.warn("Redis 장애 - checkoutToken 조회 실패, DB 폴백 시도 [token: {}, reason: {}]", checkoutToken, e.getMessage());
+        return Optional.empty();
     }
 
     private long reserveStockFallback(Long productId, Long userId, String checkoutToken, Exception e) {
-        log.error("Redis 장애 - 재고 차감 불가 [productId: {}, reason: {}]", productId, e.getMessage());
-        throw new BusinessException(ErrorCode.REDIS_UNAVAILABLE);
+        log.warn("Redis 장애 - 재고 차감 실패, DB 폴백 시도 [productId: {}, reason: {}]", productId, e.getMessage());
+        return -2L;
     }
 
     private void deleteCheckoutTokenFallback(String checkoutToken, Exception e) {

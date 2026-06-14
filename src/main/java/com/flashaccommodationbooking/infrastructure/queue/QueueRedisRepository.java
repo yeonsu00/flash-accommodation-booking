@@ -1,7 +1,11 @@
 package com.flashaccommodationbooking.infrastructure.queue;
 
 import com.flashaccommodationbooking.domain.queue.QueueStatus;
+import com.flashaccommodationbooking.global.exception.BusinessException;
+import com.flashaccommodationbooking.global.exception.ErrorCode;
+import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.Cursor;
 import org.springframework.data.redis.core.ScanOptions;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -15,6 +19,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
+@Slf4j
 @Repository
 @RequiredArgsConstructor
 public class QueueRedisRepository {
@@ -27,10 +32,12 @@ public class QueueRedisRepository {
     private static final String OPEN_PREFIX = "open:";
     private static final long TOKEN_TTL_SECONDS = 1800L;
 
+    @CircuitBreaker(name = "redis", fallbackMethod = "addToWaitingQueueFallback")
     public void addToWaitingQueue(Long productId, String queueToken, double score) {
         redisTemplate.opsForZSet().add(WAITING_QUEUE_PREFIX + productId, queueToken, score);
     }
 
+    @CircuitBreaker(name = "redis", fallbackMethod = "saveQueueTokenInfoFallback")
     public void saveQueueTokenInfo(String queueToken, Long userId, Long productId, long receivedAt) {
         String key = TOKEN_INFO_PREFIX + queueToken;
         Map<String, String> fields = new HashMap<>();
@@ -42,14 +49,17 @@ public class QueueRedisRepository {
         redisTemplate.expire(key, TOKEN_TTL_SECONDS, TimeUnit.SECONDS);
     }
 
+    @CircuitBreaker(name = "redis", fallbackMethod = "getQueueTokenInfoFallback")
     public Map<Object, Object> getQueueTokenInfo(String queueToken) {
         return redisTemplate.opsForHash().entries(TOKEN_INFO_PREFIX + queueToken);
     }
 
+    @CircuitBreaker(name = "redis", fallbackMethod = "getQueueRankFallback")
     public Long getQueueRank(Long productId, String queueToken) {
         return redisTemplate.opsForZSet().rank(WAITING_QUEUE_PREFIX + productId, queueToken);
     }
 
+    @CircuitBreaker(name = "redis", fallbackMethod = "getOpenedProductIdsFallback")
     public List<Long> getOpenedProductIds() {
         List<Long> productIds = new ArrayList<>();
         long now = System.currentTimeMillis();
@@ -68,6 +78,7 @@ public class QueueRedisRepository {
         return productIds;
     }
 
+    @CircuitBreaker(name = "redis", fallbackMethod = "getProductOpenAtFallback")
     public Long getProductOpenAt(Long productId) {
         Object value = redisTemplate.opsForHash().get(OPEN_PREFIX + productId, "openAt");
         return value != null ? Long.parseLong((String) value) : null;
@@ -99,4 +110,33 @@ public class QueueRedisRepository {
         redisTemplate.opsForZSet().remove(WAITING_QUEUE_PREFIX + productId, tokens.toArray());
     }
 
+    private void addToWaitingQueueFallback(Long productId, String queueToken, double score, Exception e) {
+        log.warn("Redis 장애 - 대기열 진입 불가 [productId: {}, reason: {}]", productId, e.getMessage());
+        throw new BusinessException(ErrorCode.REDIS_UNAVAILABLE);
+    }
+
+    private void saveQueueTokenInfoFallback(String queueToken, Long userId, Long productId, long receivedAt, Exception e) {
+        log.warn("Redis 장애 - 대기열 토큰 저장 불가 [token: {}, reason: {}]", queueToken, e.getMessage());
+        throw new BusinessException(ErrorCode.REDIS_UNAVAILABLE);
+    }
+
+    private Map<Object, Object> getQueueTokenInfoFallback(String queueToken, Exception e) {
+        log.warn("Redis 장애 - 대기열 토큰 조회 불가 [token: {}, reason: {}]", queueToken, e.getMessage());
+        throw new BusinessException(ErrorCode.REDIS_UNAVAILABLE);
+    }
+
+    private Long getQueueRankFallback(Long productId, String queueToken, Exception e) {
+        log.warn("Redis 장애 - 대기열 순위 조회 불가 [productId: {}, reason: {}]", productId, e.getMessage());
+        throw new BusinessException(ErrorCode.REDIS_UNAVAILABLE);
+    }
+
+    private List<Long> getOpenedProductIdsFallback(Exception e) {
+        log.warn("Redis 장애 - 오픈 상품 조회 불가 [reason: {}]", e.getMessage());
+        throw new BusinessException(ErrorCode.REDIS_UNAVAILABLE);
+    }
+
+    private Long getProductOpenAtFallback(Long productId, Exception e) {
+        log.warn("Redis 장애 - 상품 오픈 시각 조회 불가 [productId: {}, reason: {}]", productId, e.getMessage());
+        throw new BusinessException(ErrorCode.REDIS_UNAVAILABLE);
+    }
 }
