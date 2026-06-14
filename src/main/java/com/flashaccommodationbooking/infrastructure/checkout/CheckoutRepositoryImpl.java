@@ -24,4 +24,9 @@ public class CheckoutRepositoryImpl implements CheckoutRepository {
                 .map(CheckoutInfo.TokenInfo::from);
     }
 
+    @Override
+    public void deleteCheckoutToken(String checkoutToken) {
+        checkoutRedisRepository.deleteCheckoutToken(checkoutToken);
+    }
+
 }

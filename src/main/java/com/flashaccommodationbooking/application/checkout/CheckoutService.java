@@ -23,4 +23,8 @@ public class CheckoutService {
                 .orElseThrow(() -> new BusinessException(ErrorCode.CHECKOUT_TOKEN_NOT_FOUND));
     }
 
+    public void deleteCheckoutToken(String checkoutToken) {
+        checkoutRepository.deleteCheckoutToken(checkoutToken);
+    }
+
 }

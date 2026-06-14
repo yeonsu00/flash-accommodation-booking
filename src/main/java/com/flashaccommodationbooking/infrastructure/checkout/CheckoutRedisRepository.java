@@ -41,4 +41,8 @@ public class CheckoutRedisRepository {
         return redisTemplate.execute(RESERVE_STOCK_SCRIPT, keys, value, String.valueOf(CHECKOUT_TTL_SECONDS));
     }
 
+    public void deleteCheckoutToken(String checkoutToken) {
+        redisTemplate.delete(CHECKOUT_PREFIX + checkoutToken);
+    }
+
 }

@@ -21,6 +21,7 @@ public class RedisCleanUp {
         deleteByPattern("open:*");
         deleteByPattern("stock:*");
         deleteByPattern("checkout:*");
+        deleteByPattern("idempotency:*");
     }
 
     private void deleteByPattern(String pattern) {
