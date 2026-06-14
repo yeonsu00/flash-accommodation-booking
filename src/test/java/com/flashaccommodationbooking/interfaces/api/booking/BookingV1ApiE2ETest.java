@@ -6,6 +6,7 @@ import com.flashaccommodationbooking.domain.user.User;
 import com.flashaccommodationbooking.global.common.CommonApiResponse;
 import com.flashaccommodationbooking.infrastructure.product.ProductJpaRepository;
 import com.flashaccommodationbooking.infrastructure.user.UserJpaRepository;
+import com.flashaccommodationbooking.infrastructure.payment.PgPaymentSimulator;
 import com.flashaccommodationbooking.support.BookingTestFixtures;
 import com.flashaccommodationbooking.support.IntegrationTest;
 import com.flashaccommodationbooking.support.utils.DatabaseCleanUp;
@@ -27,11 +28,15 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertAll;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.reset;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @ActiveProfiles("test")
@@ -45,6 +50,9 @@ class BookingV1ApiE2ETest extends IntegrationTest {
     private final DatabaseCleanUp databaseCleanUp;
     private final UserJpaRepository userJpaRepository;
     private final ProductJpaRepository productJpaRepository;
+
+    @MockitoSpyBean
+    private PgPaymentSimulator pgPaymentSimulator;
 
     private String checkoutToken;
     private User user;
@@ -76,6 +84,11 @@ class BookingV1ApiE2ETest extends IntegrationTest {
         product = productJpaRepository.save(BookingTestFixtures.defaultProduct());
         checkoutToken = UUID.randomUUID().toString();
         saveCheckoutToken(checkoutToken, user.getId(), product.getId());
+
+        reset(pgPaymentSimulator);
+        doReturn(UUID.randomUUID().toString())
+                .when(pgPaymentSimulator)
+                .approve(any());
     }
 
     @AfterEach

@@ -7,6 +7,7 @@ import com.flashaccommodationbooking.global.exception.ErrorCode;
 import com.flashaccommodationbooking.infrastructure.booking.BookingJpaRepository;
 import com.flashaccommodationbooking.infrastructure.payment.PaymentJpaRepository;
 import com.flashaccommodationbooking.infrastructure.payment.PaymentMethodDetailJpaRepository;
+import com.flashaccommodationbooking.infrastructure.payment.PgPaymentSimulator;
 import com.flashaccommodationbooking.infrastructure.product.ProductJpaRepository;
 import com.flashaccommodationbooking.infrastructure.user.UserJpaRepository;
 import com.flashaccommodationbooking.support.BookingTestFixtures;
@@ -20,6 +21,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -32,6 +34,9 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.reset;
 
 @SpringBootTest
 @ActiveProfiles("test")
@@ -64,6 +69,9 @@ class BookingFacadeConcurrencyTest extends IntegrationTest {
     @Autowired
     private PaymentMethodDetailJpaRepository paymentMethodDetailJpaRepository;
 
+    @MockitoSpyBean
+    private PgPaymentSimulator pgPaymentSimulator;
+
     @BeforeEach
     void setUp() {
         cleanDatabase();
@@ -72,6 +80,11 @@ class BookingFacadeConcurrencyTest extends IntegrationTest {
         User user = userJpaRepository.save(BookingTestFixtures.defaultUser());
         AccommodationProduct product = productJpaRepository.save(BookingTestFixtures.defaultProduct());
         saveCheckoutToken(CHECKOUT_TOKEN, user.getId(), product.getId());
+
+        reset(pgPaymentSimulator);
+        doReturn(UUID.randomUUID().toString())
+                .when(pgPaymentSimulator)
+                .approve(any());
     }
 
     @AfterEach
