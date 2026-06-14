@@ -6,11 +6,14 @@ import com.flashaccommodationbooking.domain.payment.PaymentMethodType;
 import com.flashaccommodationbooking.global.exception.BusinessException;
 import com.flashaccommodationbooking.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.List;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class PaymentService {
@@ -18,6 +21,7 @@ public class PaymentService {
     private final PaymentRepository paymentRepository;
     private final PaymentMethodDetailRepository paymentMethodDetailRepository;
     private final PaymentProcessorFactory processorFactory;
+    private final ApplicationEventPublisher eventPublisher;
 
     public void processPayments(Long bookingId, String idempotencyKey,
                                 List<PaymentCommand.Method> methods, Long userId) {
@@ -25,25 +29,24 @@ public class PaymentService {
         Payment payment = Payment.of(bookingId, idempotencyKey, totalAmount);
         paymentRepository.save(payment);
 
-        List<PaymentCommand.Request> processedCommands = new ArrayList<>();
+        List<PaymentCommand.Request> processedPgCommands = new ArrayList<>();
 
         for (PaymentCommand.Method method : methods) {
             PaymentCommand.Request cmd = PaymentCommand.Request.of(bookingId, userId, method.methodType(), method.amount());
             try {
                 String pgTransactionId = processorFactory.getProcessor(method.methodType()).process(cmd);
-                processedCommands.add(cmd);
 
                 PaymentMethodDetail detail = PaymentMethodDetail.of(payment, method.methodType(), method.amount());
                 if (pgTransactionId != null) {
                     detail.assignPgTransactionId(pgTransactionId);
+                    processedPgCommands.add(cmd);
                 }
                 paymentMethodDetailRepository.save(detail);
 
             } catch (Exception e) {
-                for (PaymentCommand.Request processed : processedCommands) {
-                    processorFactory.getProcessor(processed.methodType()).cancel(processed);
-                }
-                payment.fail();
+                log.warn("결제 실패 - PG 승인 취소 예정 [bookingId: {}, methodType: {}, 취소 대상: {}건, reason: {}]",
+                        bookingId, method.methodType(), processedPgCommands.size(), e.getMessage());
+                eventPublisher.publishEvent(new PaymentCompensationEvent(processedPgCommands));
                 throw e;
             }
         }
