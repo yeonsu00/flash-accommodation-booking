@@ -39,3 +39,9 @@ resilience4j:
         permitted-number-of-calls-in-half-open-state: 1
         ignore-exceptions:
           - com.flashaccommodationbooking.global.exception.BusinessException
+      redis:
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 200ms
+        sliding-window-size: 5
+        minimum-number-of-calls: 3
+        permitted-number-of-calls-in-half-open-state: 2

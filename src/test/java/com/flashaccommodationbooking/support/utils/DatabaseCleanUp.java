@@ -1,6 +1,7 @@
 package com.flashaccommodationbooking.support.utils;
 
 import com.flashaccommodationbooking.infrastructure.booking.BookingJpaRepository;
+import com.flashaccommodationbooking.infrastructure.checkout.CheckoutTokenJpaRepository;
 import com.flashaccommodationbooking.infrastructure.payment.PaymentJpaRepository;
 import com.flashaccommodationbooking.infrastructure.payment.PaymentMethodDetailJpaRepository;
 import com.flashaccommodationbooking.infrastructure.product.ProductJpaRepository;
@@ -15,6 +16,7 @@ public class DatabaseCleanUp {
     private final PaymentMethodDetailJpaRepository paymentMethodDetailJpaRepository;
     private final PaymentJpaRepository paymentJpaRepository;
     private final BookingJpaRepository bookingJpaRepository;
+    private final CheckoutTokenJpaRepository checkoutTokenJpaRepository;
     private final UserJpaRepository userJpaRepository;
     private final ProductJpaRepository productJpaRepository;
 
@@ -22,6 +24,7 @@ public class DatabaseCleanUp {
         paymentMethodDetailJpaRepository.deleteAll();
         paymentJpaRepository.deleteAll();
         bookingJpaRepository.deleteAll();
+        checkoutTokenJpaRepository.deleteAll();
         userJpaRepository.deleteAll();
         productJpaRepository.deleteAll();
     }

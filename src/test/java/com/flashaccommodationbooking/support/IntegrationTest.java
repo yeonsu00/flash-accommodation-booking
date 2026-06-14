@@ -18,17 +18,19 @@ public abstract class IntegrationTest {
 
     @BeforeEach
     void resetCircuitBreakerBeforeEach() {
-        resetPgApiCircuitBreaker();
+        resetCircuitBreaker("pg-api");
+        resetCircuitBreaker("redis");
     }
 
     @AfterEach
     void resetCircuitBreakerAfterEach() {
-        resetPgApiCircuitBreaker();
+        resetCircuitBreaker("pg-api");
+        resetCircuitBreaker("redis");
     }
 
-    private void resetPgApiCircuitBreaker() {
+    private void resetCircuitBreaker(String name) {
         if (circuitBreakerRegistry != null) {
-            CircuitBreaker circuitBreaker = circuitBreakerRegistry.circuitBreaker("pg-api");
+            CircuitBreaker circuitBreaker = circuitBreakerRegistry.circuitBreaker(name);
             circuitBreaker.transitionToClosedState();
             circuitBreaker.reset();
         }
