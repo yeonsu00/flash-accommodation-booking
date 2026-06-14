@@ -8,4 +8,6 @@ public interface CheckoutRepository {
 
     Optional<CheckoutInfo.TokenInfo> getCheckoutTokenInfo(String checkoutToken);
 
+    void deleteCheckoutToken(String checkoutToken);
+
 }
