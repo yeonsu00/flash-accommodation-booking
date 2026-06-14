@@ -2,13 +2,16 @@ package com.flashaccommodationbooking.infrastructure.payment.processor;
 
 import com.flashaccommodationbooking.application.payment.PaymentCommand.Request;
 import com.flashaccommodationbooking.application.payment.PaymentProcessor;
+import com.flashaccommodationbooking.application.payment.PaymentClient;
 import com.flashaccommodationbooking.domain.payment.PaymentMethodType;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
-import java.util.UUID;
-
 @Component
+@RequiredArgsConstructor
 public class CreditCardPaymentProcessor implements PaymentProcessor {
+
+    private final PaymentClient paymentClient;
 
     @Override
     public PaymentMethodType supports() {
@@ -17,13 +20,11 @@ public class CreditCardPaymentProcessor implements PaymentProcessor {
 
     @Override
     public String process(Request command) {
-        // PG사 연동
-        return UUID.randomUUID().toString();
+        return paymentClient.approve(command);
     }
 
     @Override
     public void cancel(Request command) {
-        // PG사 취소
+        paymentClient.cancel(command);
     }
-
 }

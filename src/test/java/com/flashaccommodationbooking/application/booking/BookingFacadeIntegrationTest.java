@@ -12,6 +12,7 @@ import com.flashaccommodationbooking.global.exception.ErrorCode;
 import com.flashaccommodationbooking.infrastructure.booking.BookingJpaRepository;
 import com.flashaccommodationbooking.infrastructure.payment.PaymentJpaRepository;
 import com.flashaccommodationbooking.infrastructure.payment.PaymentMethodDetailJpaRepository;
+import com.flashaccommodationbooking.infrastructure.payment.PgPaymentSimulator;
 import com.flashaccommodationbooking.infrastructure.product.ProductJpaRepository;
 import com.flashaccommodationbooking.infrastructure.user.UserJpaRepository;
 import com.flashaccommodationbooking.support.BookingTestFixtures;
@@ -28,10 +29,14 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.event.ApplicationEvents;
 import org.springframework.test.context.event.RecordApplicationEvents;
+import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.reset;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 @SpringBootTest
@@ -68,6 +73,9 @@ class BookingFacadeIntegrationTest extends IntegrationTest {
     @Autowired
     private PaymentMethodDetailJpaRepository paymentMethodDetailJpaRepository;
 
+    @MockitoSpyBean
+    private PgPaymentSimulator pgPaymentSimulator;
+
     private User user;
     private AccommodationProduct product;
 
@@ -79,6 +87,11 @@ class BookingFacadeIntegrationTest extends IntegrationTest {
         user = userJpaRepository.save(BookingTestFixtures.defaultUser());
         product = productJpaRepository.save(BookingTestFixtures.defaultProduct());
         saveCheckoutToken(CHECKOUT_TOKEN, user.getId(), product.getId());
+
+        reset(pgPaymentSimulator);
+        doReturn(UUID.randomUUID().toString())
+                .when(pgPaymentSimulator)
+                .approve(any());
     }
 
     @AfterEach
