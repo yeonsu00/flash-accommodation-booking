@@ -7,6 +7,7 @@ import com.flashaccommodationbooking.global.common.CommonApiResponse;
 import com.flashaccommodationbooking.infrastructure.product.ProductJpaRepository;
 import com.flashaccommodationbooking.infrastructure.user.UserJpaRepository;
 import com.flashaccommodationbooking.support.IntegrationTest;
+import com.flashaccommodationbooking.support.utils.DatabaseCleanUp;
 import com.flashaccommodationbooking.support.utils.RedisCleanUp;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
@@ -48,6 +49,7 @@ class CheckoutApiE2ETest extends IntegrationTest {
     private final TestRestTemplate testRestTemplate;
     private final StringRedisTemplate redisTemplate;
     private final RedisCleanUp redisCleanUp;
+    private final DatabaseCleanUp databaseCleanUp;
     private final ProductJpaRepository productJpaRepository;
     private final UserJpaRepository userJpaRepository;
 
@@ -56,21 +58,22 @@ class CheckoutApiE2ETest extends IntegrationTest {
             TestRestTemplate testRestTemplate,
             StringRedisTemplate redisTemplate,
             RedisCleanUp redisCleanUp,
+            DatabaseCleanUp databaseCleanUp,
             ProductJpaRepository productJpaRepository,
             UserJpaRepository userJpaRepository
     ) {
         this.testRestTemplate = testRestTemplate;
         this.redisTemplate = redisTemplate;
         this.redisCleanUp = redisCleanUp;
+        this.databaseCleanUp = databaseCleanUp;
         this.productJpaRepository = productJpaRepository;
         this.userJpaRepository = userJpaRepository;
     }
 
     @AfterEach
     void tearDown() {
+        databaseCleanUp.truncateAll();
         redisCleanUp.truncateAll();
-        userJpaRepository.deleteAll();
-        productJpaRepository.deleteAll();
     }
 
     @DisplayName("POST /checkout")
